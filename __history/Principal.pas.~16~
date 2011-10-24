@@ -1,0 +1,101 @@
+unit Principal;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ExtCtrls, Menus, JvComponentBase, JvThread;
+
+type
+  TfrmPrincipal = class(TForm)
+    TrayIcon: TTrayIcon;
+    PopMenu: TPopupMenu;
+    Backup1: TMenuItem;
+    Restaurao1: TMenuItem;
+    Reparo1: TMenuItem;
+    Fechar1: TMenuItem;
+    procedure FormCreate(Sender: TObject);
+    procedure Fechar1Click(Sender: TObject);
+    procedure Backup1Click(Sender: TObject);
+    procedure Restaurao1Click(Sender: TObject);
+    procedure ThreadAfterCreateDialogForm(
+      DialogForm: TJvCustomThreadDialogForm);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmPrincipal: TfrmPrincipal;
+
+implementation
+
+uses Backup, Restauracao, DUtilit, Tlhelp32, ShellApi;
+
+{$R *.dfm}
+
+function ProcessoExiste(ExeFileName: string): integer;
+const
+  PROCESS_TERMINATE=$0001;
+var
+  ContinueLoop: BOOL;
+  FSnapshotHandle: THandle;
+  FProcessEntry32: TProcessEntry32{declarar Uses Tlhelp32};
+  count:integer;
+begin
+  count:=0;
+  result := count;
+
+  FSnapshotHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  FProcessEntry32.dwSize := Sizeof(FProcessEntry32);
+  ContinueLoop := Process32First(FSnapshotHandle,FProcessEntry32);
+
+  while integer(ContinueLoop) <> 0 do
+  begin
+    if ((UpperCase(ExtractFileName(FProcessEntry32.szExeFile)) = UpperCase(ExeFileName))
+    or (UpperCase(FProcessEntry32.szExeFile) = UpperCase(ExeFileName))) then
+    begin
+      count:=count+1;
+    end;
+
+    ContinueLoop := Process32Next(FSnapshotHandle,FProcessEntry32);
+  end;
+  CloseHandle(FSnapshotHandle);
+
+  Result := count;
+end;
+
+procedure TfrmPrincipal.Backup1Click(Sender: TObject);
+begin
+  frmBackup.ShowModal;
+end;
+
+procedure TfrmPrincipal.Fechar1Click(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
+procedure TfrmPrincipal.FormCreate(Sender: TObject);
+begin
+  if ProcessoExiste(ExtractFileName(Application.ExeName))> 1then
+  begin
+    ShowMessage('Este programa já está em execução!');
+    Application.Terminate;
+    Exit;
+  end;
+  Application.ShowMainForm:= False;
+end;
+
+procedure TfrmPrincipal.Restaurao1Click(Sender: TObject);
+begin
+  frmRestauracao.ShowModal;
+end;
+
+procedure TfrmPrincipal.ThreadAfterCreateDialogForm(
+  DialogForm: TJvCustomThreadDialogForm);
+begin
+  Application.Terminate;
+end;
+
+end.

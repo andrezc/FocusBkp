@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2011/07/22 14:15:20.562.pas,D:\RAD Studio\Projects\Unit1.pas=D:\Focus\FocusBkp\Principal.pas</Transaction>
+    <Transaction>2011/07/22 14:15:20.562.dfm,D:\RAD Studio\Projects\Unit1.dfm=D:\Focus\FocusBkp\Principal.dfm</Transaction>
+    <Transaction>2011/07/22 14:15:32.640.dproj,D:\RAD Studio\Projects\Project1.dproj=D:\Focus\FocusBkp\FocusBackup.dproj</Transaction>
+    <Transaction>2011/07/22 14:19:47.078.pas,D:\Focus\FocusBkp\Unit2.pas=D:\Focus\FocusBkp\Backup.pas</Transaction>
+    <Transaction>2011/07/22 14:19:47.078.dfm,D:\Focus\FocusBkp\Unit2.dfm=D:\Focus\FocusBkp\Backup.dfm</Transaction>
+    <Transaction>2011/07/26 08:22:50.203.pas,D:\Focus\FocusBkp\Unit2.pas=D:\Focus\FocusBkp\Restauracao.pas</Transaction>
+    <Transaction>2011/07/26 08:22:50.203.dfm,D:\Focus\FocusBkp\Unit2.dfm=D:\Focus\FocusBkp\Restauracao.dfm</Transaction>
+    <Transaction>2011/08/26 13:23:22.156.pas,D:\Focus\FocusBkp\Unit1.pas=D:\Focus\FocusBkp\Repara.pas</Transaction>
+    <Transaction>2011/08/26 13:23:22.156.dfm,D:\Focus\FocusBkp\Unit1.dfm=D:\Focus\FocusBkp\Repara.dfm</Transaction>
+    <Transaction>2011/08/26 13:44:29.250.pas,D:\Focus\FocusBkp\UDBFunctions.pas=</Transaction>
+    <Transaction>2011/08/26 13:44:29.250.dfm,D:\Focus\FocusBkp\UDBFunctions.dfm=</Transaction>
+  </Transactions>
+</BorlandProject>

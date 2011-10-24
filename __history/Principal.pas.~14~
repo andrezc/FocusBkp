@@ -1,0 +1,70 @@
+unit Principal;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ExtCtrls, Menus, JvComponentBase, JvThread;
+
+type
+  TfrmPrincipal = class(TForm)
+    TrayIcon: TTrayIcon;
+    PopMenu: TPopupMenu;
+    Backup1: TMenuItem;
+    Restaurao1: TMenuItem;
+    Reparo1: TMenuItem;
+    Fechar1: TMenuItem;
+    procedure FormCreate(Sender: TObject);
+    procedure Fechar1Click(Sender: TObject);
+    procedure Backup1Click(Sender: TObject);
+    procedure Restaurao1Click(Sender: TObject);
+    procedure ThreadAfterCreateDialogForm(
+      DialogForm: TJvCustomThreadDialogForm);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmPrincipal: TfrmPrincipal;
+
+implementation
+
+uses Backup, Restauracao, DUtilit;
+
+{$R *.dfm}
+
+procedure TfrmPrincipal.Backup1Click(Sender: TObject);
+begin
+  frmBackup.ShowModal;
+end;
+
+procedure TfrmPrincipal.Fechar1Click(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
+procedure TfrmPrincipal.FormCreate(Sender: TObject);
+begin
+  if ProcessoExiste(ExtractFileName(Application.ExeName))> 1then
+  begin
+    ShowMessage('Este programa já está em execução!');
+    Application.Terminate;
+    Exit;
+  end;
+  Application.ShowMainForm:= False;
+end;
+
+procedure TfrmPrincipal.Restaurao1Click(Sender: TObject);
+begin
+  frmRestauracao.ShowModal;
+end;
+
+procedure TfrmPrincipal.ThreadAfterCreateDialogForm(
+  DialogForm: TJvCustomThreadDialogForm);
+begin
+  Application.Terminate;
+end;
+
+end.

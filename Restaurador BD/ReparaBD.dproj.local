@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2011/08/10 09:07:03.005.pas,C:\Users\Focus\Documents\RAD Studio\Projects\Unit1.pas=C:\Projetos\Restaurador BD\UPrincipal.pas</Transaction>
+    <Transaction>2011/08/10 09:07:03.005.dfm,C:\Users\Focus\Documents\RAD Studio\Projects\Unit1.dfm=C:\Projetos\Restaurador BD\UPrincipal.dfm</Transaction>
+    <Transaction>2011/08/10 09:07:13.703.dproj,C:\Users\Focus\Documents\RAD Studio\Projects\Project1.dproj=C:\Projetos\Restaurador BD\ReparaBD.dproj</Transaction>
+  </Transactions>
+</BorlandProject>

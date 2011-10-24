@@ -1,0 +1,19 @@
+program FocusBackup;
+
+uses
+  ExceptionLog,
+  Forms,
+  Principal in 'Principal.pas' {frmPrincipal},
+  Backup in 'Backup.pas' {frmBackup},
+  Restauracao in 'Restauracao.pas' {frmRestauracao};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TfrmPrincipal, frmPrincipal);
+  Application.CreateForm(TfrmBackup, frmBackup);
+  Application.CreateForm(TfrmRestauracao, frmRestauracao);
+  Application.Run;
+end.

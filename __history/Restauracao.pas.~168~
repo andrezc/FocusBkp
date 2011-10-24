@@ -1,0 +1,369 @@
+unit Restauracao;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ComCtrls, StdCtrls, JvComponentBase, JvThread, Buttons, IBServices,
+  DUtilit, ZipForge;
+
+type
+  TfrmRestauracao = class(TForm)
+    MemoLog: TMemo;
+    ProgressBar: TProgressBar;
+    Thread: TJvThread;
+    grp1: TGroupBox;
+    txtCaminhoArq: TEdit;
+    btProcura: TBitBtn;
+    lbl1: TLabel;
+    btnInicia: TBitBtn;
+    btnSair: TBitBtn;
+    ZipForge1: TZipForge;
+    OpenDialog1: TOpenDialog;
+    IBRestoreService1: TIBRestoreService;
+    IBBackupService: TIBBackupService;
+    procedure FormCreate(Sender: TObject);
+    procedure btnSairClick(Sender: TObject);
+    procedure btnIniciaClick(Sender: TObject);
+    procedure btProcuraClick(Sender: TObject);
+  private
+    procedure Restaurabkp;
+    procedure Informa(mensagem: string);
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmRestauracao: TfrmRestauracao;
+  archiver : TZipForge;
+
+implementation
+
+{$R *.dfm}
+
+procedure TfrmRestauracao.Informa (mensagem: string);
+begin
+  MemoLog.Lines.Add(mensagem);
+  Application.ProcessMessages;
+end;
+
+function DirBkp : String;
+begin
+  Result:= DiretorioDoExecutavel+'FOCUS_BACKUP\';
+end;
+
+function GetWindowsDrive: Char;
+var
+  S: string;
+begin
+  SetLength(S, MAX_PATH);
+  if GetWindowsDirectory(PChar(S), MAX_PATH) > 0 then
+    Result := string(S)[1]
+  else
+    Result := #0;
+end;
+
+procedure TfrmRestauracao.Restaurabkp;
+var
+  Caminho,
+  DirCort,
+  DirCort2 : string;
+begin
+  if txtCaminhoArq.Text = Trim('') then
+  begin
+    Informa('********** Atenção! **********');
+    Informa('Você não informou o caminho do Arquivo de Backup.');
+    Exit;
+  end;
+
+  MemoLog.Clear;
+  btnInicia.Enabled:=False;
+  MemoLog.Lines.Add('Preparando para iniciar a Restauração...');
+
+
+  if(FileExists(DirBkp + 'FOCUS.FOC')) then
+  begin
+    RenameFile(dirBkp + 'FOCUS.FOC', dirBkp + 'FOCUS_OLD.FOC');
+
+    try
+      with IBBackupService do
+      begin
+        DatabaseName:= dirBkp + 'FOCUS.FOC';
+        ServerName  :='localhost';
+        BackupFile.Clear;
+        BackupFile.Add(dirBkp + 'FOCUS.FOC');
+        Protocol    :=TCP;
+        Params.Clear;
+        Params.Add('user_name=SYSDBA');
+        Params.Add('password=masterkey');
+        LoginPrompt := False;
+        Active      := True;
+
+        Application.ProcessMessages;
+
+        try
+          ServiceStart;
+          while not Eof do
+          begin
+            Informa(GetNextLine);
+          end;
+        except
+          on e : Exception do
+            Informa(e.Message);
+        end;
+        Active:=False;
+        Informa('');
+        Informa('********* Restauração Concluída! *********');
+      end;
+
+        //DMBanco.IBDB.Connected:=True;//conecta o sistema na base de dados
+        btnInicia.Enabled:=True;
+    except
+      on E: Exception do
+      begin
+        //  DMBanco.IBDB.Connected:=True;//conecta o sistema na base de dados
+        btnInicia.Enabled:=True;
+      end;
+    end;
+
+    // Compactação
+    archiver := TZipForge.Create(nil);
+    try
+      with archiver do
+      begin
+        FileName :=dirBkp + 'FOCUS_OLD.zip';
+        OpenArchive(fmCreate);
+        BaseDir :=dirBkp;
+        caminho := DirBkp + 'FOCUS_OLD.FOC';
+        AddFiles(caminho);
+        CloseArchive();
+        deletefile(caminho);
+      end
+    except
+      on e : Exception do
+      begin
+        Informa('***** Ocorreu algum problema ao compactar. *****');
+        Informa(e.Message);
+        Exit;
+      end;
+    end;
+  end;
+
+  if (UpperCase(TiraAPartirDoUltimo(OpenDialog1.FileName,'.')))='ZIP' then
+  begin
+    archiver := TZipForge.Create(nil);
+    try
+      with archiver do
+      begin
+        CopiaArquivos(txtCaminhoArq.Text, GetWindowsDrive+':\', '');
+        FileName := txtCaminhoArq.Text;
+        OpenArchive(fmOpenReadWrite);
+        Archiver.RenameFile('*.fbk', 'DADOS.fbk');
+        BaseDir := DirBkp ;
+        ExtractFiles('*.*');
+        CloseArchive();
+      end;
+
+    except
+      on e : Exception do
+      begin
+        Informa('***** Ocorreu um erro ao descompactar o Arquivo de Backup. *****');
+        Informa(e.Message);
+        Exit;
+      end;
+    end ;
+  end;
+
+  try
+    with IBRestoreService1 do
+    begin
+      Informa('');
+      Informa('***** Procurando o arquivo "DADOS.fbk"... ******');
+      Sleep(6000);
+      if not FileExists (dirBkp + 'DADOS.fbk') then
+      begin
+        Informa('O arquivo não foi encontrado!');
+        Informa('');
+        btnInicia.Enabled:= False;
+        dirCort := TiraAteOUltimo(txtCaminhoArq.Text,'\');
+        dirCort2:= dirCort+'\DADOS.fbk';
+        RenameFile(txtCaminhoArq.Text,dirCort2);
+      end;
+
+      ServerName:= 'localhost';
+      loginPrompt:= False;
+      Params.Add('user_name=SYSDBA');
+      Params.Add('password=masterkey');
+      Active := true;
+      Verbose := true;
+      DatabaseName.Add (DirBkp + 'FOCUS.FOC');
+      BackupFile.Add(dirBkp + 'DADOS.fbk');
+      Informa('*****************  Inicio *****************');
+      Application.ProcessMessages;
+      Informa('');
+      with IBRestoreService1 do
+      begin
+        ServiceStart;
+        while not Eof do
+        begin
+          Informa(GetNextLine);
+        end;
+        Active:= False;
+        Informa('***************** Fim *****************');
+        Options:= [];
+      end;
+    end;
+
+  finally
+    Screen.Cursor:= crDefault;
+    txtCaminhoArq.Clear;
+  end;
+end;
+
+
+procedure TfrmRestauracao.btnIniciaClick(Sender: TObject);
+{var
+  DirCort, DirCort2 : String;
+begin
+  MemoLog.Clear;
+  if txtCaminhoArq.Text = Trim('') then
+  begin
+    MessageBox(0, 'Selecione um Arquivo de Backup.', 'Atenção!', MB_ICONWARNING or MB_OK);
+    Exit;
+  end;
+
+  MemoLog.Lines.Add('');
+  MemoLog.Lines.Add('                     Inicio                    ');
+  MemoLog.Lines.Add('--------------------------------------------');
+  MemoLog.Lines.Add('Preparando a Restauração...');
+
+  if(FileExists(DirBkp +'FOCUS.FOC')) then
+  begin
+    RenameFile(DirBkp+'FOCUS.FOC',
+    DirBkp + 'FOCUS_OLD.FOC');
+    Screen.Cursor:= crHourGlass;
+    with IBBackupService do
+    begin
+      DatabaseName:= DirBkp+'FOCUS.FOC';
+      ServerName:= 'localhost';
+      BackupFile.Clear;
+      BackupFile.Add(DirBkp+'FOCUS.FOC');
+      Protocol:= TCP;
+      Params.Clear;
+      Params.Add('user_name=SYSDBA');
+      Params.Add('password=masterkey');
+      LoginPrompt := False;
+      Active:= True;
+      ServiceStart;
+      while not Eof do
+      begin
+        MemoLog.Lines.Add(GetNextLine);
+        ProgressBar.Position:= ProgressBar.Position + 1;
+      end;
+
+      MemoLog.Lines.Add('Compactando o Arquivo "FOCUS.FOC" anterior...');
+      archiver := TZipForge.Create(nil);
+      with archiver do
+      begin
+        FileName :=DirBkp +'FOCUS_OLD.zip';
+        OpenArchive(fmCreate);
+        BaseDir :=DirBkp;
+        AddFiles(DirBkp+'FOCUS_OLD.FOC');
+        CloseArchive();
+        deletefile(DirBkp+'FOCUS_OLD.FOC');
+      end;
+    end;
+  end;
+
+  MemoLog.Lines.Add('Compactado!');
+  MemoLog.Lines.Add(' ');
+
+  if (UpperCase(TiraAPartirDoUltimo(OpenDialog1.FileName,'.')))='ZIP' then
+  begin
+    MemoLog.Lines.Add('Deszipando o Backup selecionado...');
+    MemoLog.Lines.Add(' ');
+    try
+      with archiver do
+      begin
+        MemoLog.Lines.Add('Criando uma cópia do arquivo no diretório '+GetWindowsDrive+':\...');
+        CopiaArquivos(txtCaminhoArq.Text, GetWindowsDrive+':\', '');
+        FileName := txtCaminhoArq.Text;
+        OpenArchive(fmOpenReadWrite);
+        Archiver.RenameFile('*.fbk', 'DADOS.fbk');
+        BaseDir := DirBkp;
+        ExtractFiles('*.*');
+        CloseArchive();
+
+        MemoLog.Lines.Add('Arquivo descompactado!');
+        MemoLog.Lines.Add('Preparando para Restaurar...');
+        MemoLog.Lines.Add(' ');
+      end;
+
+      with IBBackupService do
+      begin
+        MemoLog.Lines.Add('');
+        MemoLog.Lines.Add('Procurando o arquivo "DADOS.fbk"...');
+        MemoLog.Lines.Add('');
+
+        if not FileExists (DirBkp + 'DADOS.fbk') then
+        begin
+          MemoLog.Lines.Add('O arquivo "DADOS.fbk" não foi encontrado!');
+          MemoLog.Lines.Add('');
+
+          dirCort := TiraAteOUltimo(txtCaminhoArq.Text,'\');
+          dirCort2:= dirCort+'\DADOS.fbk';
+          RenameFile(txtCaminhoArq.Text ,dirCort2);
+        end;
+
+        ServerName:= 'localhost';
+        loginPrompt:= false;
+        Params.Add('user_name=SYSDBA');
+        Params.Add('password=masterkey');
+        Active := true;
+        Verbose := true;
+        DatabaseName:= DirBkp+'FOCUS.FOC';
+        BackupFile.Add(dirBkp +'DADOS.fbk');
+
+        Application.ProcessMessages;
+        MemoLog.Lines.Add('');
+
+        ServiceStart;
+        while not Eof do
+        begin
+          MemoLog.Lines.Add(GetNextLine);
+          ProgressBar.Position:= ProgressBar.Position + 1;
+        end;
+      end;
+
+    finally
+      MemoLog.Lines.Add('');
+      MemoLog.Lines.Add('--------------------------------------------');
+      MemoLog.Lines.Add('                     Fim                    ');
+      btnInicia.Enabled:= False;
+      Screen.Cursor:= crDefault;
+      IBRestoreService1.Active:= False;
+    end;
+  end;}
+begin
+  Restaurabkp;
+  Exit;
+end;
+
+procedure TfrmRestauracao.btnSairClick(Sender: TObject);
+begin
+  Self.Close;
+end;
+
+procedure TfrmRestauracao.btProcuraClick(Sender: TObject);
+begin
+  OpenDialog1.Execute();
+  txtCaminhoArq.Text:= OpenDialog1.FileName;
+end;
+
+procedure TfrmRestauracao.FormCreate(Sender: TObject);
+begin
+  MemoLog.Clear;
+  ProgressBar.Position:= 0;
+end;
+end.

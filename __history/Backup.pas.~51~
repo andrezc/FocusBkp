@@ -1,0 +1,346 @@
+unit Backup;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, Principal, StdCtrls, Buttons, JvComponentBase, JvThread, IBServices,
+  ComCtrls, DUtilit, ZipForge;
+
+type
+  TfrmBackup = class(TForm)
+    grp1: TGroupBox;
+    MemoLog: TMemo;
+    txtCaminho: TEdit;
+    btSeleciona: TBitBtn;
+    lbl1: TLabel;
+    cbxCBRecoLixo: TCheckBox;
+    cbxCBTran: TCheckBox;
+    cbxCBIgnoChec: TCheckBox;
+    cbxCBIgnoLimb: TCheckBox;
+    cbxCBDetalhes: TCheckBox;
+    btInicia: TBitBtn;
+    btSair: TBitBtn;
+    OpenDialog1: TOpenDialog;
+    ThreadBackup: TJvThread;
+    IBBackupService1: TIBBackupService;
+    ProgressBar1: TProgressBar;
+    ZipForge1: TZipForge;
+    IBRestoreService1: TIBRestoreService;
+    procedure FormCreate(Sender: TObject);
+    procedure btSairClick(Sender: TObject);
+    procedure btSelecionaClick(Sender: TObject);
+    procedure btIniciaClick(Sender: TObject);
+    procedure ThreadBackupExecute(Sender: TObject; Params: Pointer);
+  private
+    procedure GeraBackup;
+    function StrToBool(const Valor: string;
+  const ValoVerd: String='Sim'): Boolean;
+    procedure Informa(mensagem: string);
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmBackup: TfrmBackup;
+  archiver : TZipForge;
+
+implementation
+
+{$R *.dfm}
+
+procedure TfrmBackup.Informa (mensagem: string);
+begin
+  MemoLog.Lines.Add(mensagem);
+  Application.ProcessMessages;
+end;
+
+function TfrmBackup.StrToBool(const Valor: string;
+  const ValoVerd: String='Sim'): Boolean;
+begin
+  Result:=Valor=ValoVerd;
+end;
+
+procedure TfrmBackup.GeraBackup;
+var
+caminho : string;
+begin
+  if txtCaminho.Text = '' then
+  begin
+    Informa('******** Atenção! ********');
+    Informa('Você não informou o caminho referente ao Arquivo de Backup.');
+    Exit;
+  end;
+
+  MemoLog.Clear;
+  btInicia.Enabled:= False;
+
+  Informa('Preparando para restaurar o backup...');
+
+   {Aqui nós verificamos se o arquivo FOCUS_BACKUP\""FOCUS.FOC"" existe, dentro
+   do diretório de backup, situado no dir. do Focus}
+   if(FileExists(dirFocus+'\FOCUS_BACKUP\FOCUS.FOC')) then
+   begin
+   RenameFile(dirFocus+'\FOCUS_BACKUP\FOCUS.FOC',
+      dirFocus + '\FOCUS_BACKUP\FOCUS_OLD.FOC');
+    // Se chegarmos aqui, é porque ele existe.
+       try
+
+    with IBBackupService do
+    begin
+      DMBanco.IBDB.Connected:=False;//desconecta da base de dados
+      DatabaseName:=dirFocus+'FOCUS_BACKUP\FOCUS.FOC';//caminho da base de dados
+      ServerName:='localhost';//nome do servidor
+      BackupFile.Clear;
+      BackupFile.Add(dirFocus+'FOCUS_BACKUP\FOCUS.FOC');//adiciona o caminho do arquivo de backup escolhido pelo usuário
+      Protocol:=TCP;//protocolo de conexão
+      Params.Clear;
+      Params.Add('user_name=SYSDBA');//nome de usuário
+      Params.Add('password=masterkey');//senha do usuário
+      LoginPrompt := False;   // Não abre uma cx de dialogo pedindo user e passwd.
+
+
+
+
+      {a propriedade verbose do TIBBackupService especifica
+      se durante o processo de backup será retornado para a
+      aplicação o detalhamento da execução}
+
+
+
+      Active:=True;//ativa o serviço de backup, mais ainda não inicia.
+
+     // Application.ProcessMessages;
+
+      try
+        ServiceStart;//inicia o processo de backup
+                while not Eof do
+        begin
+          {conforme o restore vai sendo executado o nos podemos pegar os detalhes da sua execução
+          através do GetNextLine}
+          Memo1.Lines.Add(GetNextLine);
+        end;
+      finally
+      end;
+      Active:=False;//desativa o serviço de backup
+    //  Memo1.Lines.Add('');
+     // Memo1.Lines.Add('--------------------------------------------');
+     // Memo1.Lines.Add('                     Fim                    ');
+    end;
+
+    DMBanco.IBDB.Connected:=True;//conecta o sistema na base de dados
+    Button1.Enabled:=True;
+  except
+    on E: Exception do
+    begin
+
+      DMBanco.IBDB.Connected:=True;//conecta o sistema na base de dados
+      Button1.Enabled:=True;
+      BotaoSair.Enabled:=True;
+    end;
+  end;
+
+
+    //------------------------------------------------- //
+  //                 Termina aqui                     //
+  //-------------------------------------------------//
+  //----------------------------+
+      //  COMPACTA                  |
+      //----------------------------+
+      archiver := TZipForge.Create(nil);
+  try
+  with archiver do
+  begin
+    // Nome do arquivo a ser criado.
+    FileName :=dirFocus+'\FOCUS_BACKUP\FOCUS_OLD.zip';
+    // Because we create a new archive,
+    // we set Mode to fmCreate
+    OpenArchive(fmCreate);
+    // Set base (default) directory for all archive operations
+    //BaseDir := 'C:\';
+    BaseDir :=dirFocus+'\FOCUS_BACKUP';
+    //BaseDir := SDArquBack.FileName;
+    // Add file C:\test.txt the archive; wildcards can be used as well
+    caminho := dirFocus+'\FOCUS_BACKUP\FOCUS_OLD.FOC';
+    AddFiles(caminho);
+    CloseArchive();
+   deletefile(caminho);
+
+    end
+  finally
+
+  end;
+  end;
+  // FIM COMPACTA
+//  DeleteFile(dirFocus+'\FOCUS_BACKUP\FOCUS.FOC');
+if (UpperCase(TiraAPartirDoUltimo(OpenDialog1.FileName,'.')))='ZIP' then
+begin
+
+
+
+
+
+    //=========================+
+   //   DESZIPANDO             |
+  // ==========================+
+
+    archiver := TZipForge.Create(nil);
+  try
+  with archiver do
+  begin
+
+    //Faz uma cópia de segurança do arquivo:
+    CopiaArquivos(CampoRes.Text, GetWindowsDrive+':\', '');
+
+  // Nome do arquivo para deszipar
+    FileName := CampoRes.Text;
+
+  // Abre arquivo & leitura
+  OpenArchive(fmOpenReadWrite);
+  // Diretório padrão para deszipar.
+
+  Archiver.RenameFile('*.fbk', 'DADOS.fbk');
+
+  BaseDir := dirFocus+'\FOCUS_BACKUP\';
+  // Extrai todos os arquivos
+  ExtractFiles('*.*');
+  // Fecha o arquivo
+  CloseArchive();
+  end;
+  //exceções
+       except
+  on E: Exception do
+  begin
+  Writeln('Exception: ', E.Message);
+  // Espera por uma tecla...
+  Readln;
+  end;
+end ;
+
+
+
+  //===========================+
+  // fim deszipando            |
+  //===========================+
+end;
+
+try
+  Screen.Cursor:= crHourGlass; //cursor com ampuleta
+  if Application.MessageBox('Tem certeza ?','Confirmar',
+  MB_APPLMODAL + MB_ICONQUESTION + MB_YESNO) = mrYes then   //se for sim...
+    begin
+    BotaoSair.Enabled:= False;
+          with IBRestoreService1 do
+begin
+    Memo1.Lines.Add('');
+    memo1.Lines.Add('Procurando o arquivo "DADOS.fbk"...');
+    memo1.Lines.Add('');
+    //---
+//----------------
+//|| Verifica se o arquivo existe.
+//------------------------------
+  if not FileExists (dirFocus+'\FOCUS_BACKUP\DADOS.fbk') then
+  begin
+    memo1.Lines.Add('O arquivo não foi encontrado!');
+    memo1.Lines.Add('');
+    Button1.Enabled:=False;
+    BotaoSair.Enabled:= False;
+
+
+
+    dirCort := TiraAteOUltimo(CampoRes.Text,'\');
+    dirCort2:= dirCort+'\DADOS.fbk';
+    RenameFile(CampoRes.Text,dirCort2);
+
+
+  end;
+//-----------
+	ServerName:= 'localhost';     //Servidor (Local) (127.0.0.1)
+	loginPrompt:= false;    //Não pede senha
+	Params.Add('user_name=SYSDBA');   //Usuario
+	Params.Add('password=masterkey');   //senha
+	Active := true;       //ativo
+	Verbose := true;    //modo verbose
+	DatabaseName.Add (CampoFDB.Text);  //nome do Banco de Dados
+  BackupFile.Add(dirFocus+'\FOCUS_BACKUP\DADOS.fbk');  //Arquivo p/ backup
+
+  Memo1.Lines.Add('');
+  Memo1.Lines.Add('                     Inicio                    ');
+  Memo1.Lines.Add('--------------------------------------------');
+  Application.ProcessMessages;
+  Memo1.Lines.Add('');
+  with IBRestoreService1 do
+begin
+    ServiceStart;//inicia o processo de backup
+    while not Eof do
+    begin
+    {conforme o restore vai sendo executado o nos podemos pegar os detalhes da sua execução
+    através da função GetNextLine}
+    Memo1.Lines.Add(GetNextLine);
+    end;
+    Active:=False;//desativa o serviço de backup
+      Memo1.Lines.Add('');
+      Memo1.Lines.Add('--------------------------------------------');
+      Memo1.Lines.Add('                     Fim                    ');
+      BotaoSair.Enabled := True;
+
+
+  Options:= [];    //array de opções
+
+  if cb_Replace.checked then
+    Options := Options + [Replace];
+  if cb_NoValidityCheck.checked then
+    Options:= Options + [NoValidityCheck];
+
+
+
+
+  end;
+end;
+end;
+
+
+finally
+  Screen.Cursor:= crDefault;  //Faz o cursor voltar ao padrão
+  CampoRes.Text:= '';  //após tudo isso, esvazia os campos
+  CampoFDB.Text:= '';
+  //Disabilita botão
+  Button1.Enabled:= False;
+  //Modifica label
+
+  //-======================================
+
+
+  end;
+end;
+
+procedure TfrmBackup.ThreadBackupExecute(Sender: TObject; Params: Pointer);
+begin
+  GeraBackup;
+end;
+
+procedure TfrmBackup.btIniciaClick(Sender: TObject);
+begin
+  ThreadBackup.Priority:= tpLower;
+  ThreadBackup.ExecuteAndWait(Self);
+end;
+
+procedure TfrmBackup.btSairClick(Sender: TObject);
+begin
+  Self.Close;
+end;
+
+procedure TfrmBackup.btSelecionaClick(Sender: TObject);
+begin
+  OpenDialog1.Execute();
+  txtCaminho.Text:= OpenDialog1.FileName;
+end;
+
+procedure TfrmBackup.FormCreate(Sender: TObject);
+begin
+  MemoLog.Clear;
+  ProgressBar1.Position:= 0;
+end;
+
+end.
